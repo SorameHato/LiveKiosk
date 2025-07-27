@@ -1,4 +1,4 @@
-version = '3.0.0'
+version = '4.0.0'
 version_branch = 'candy'
-version_build = '2'
+version_build = '0'
 __version__ = f'{version}-{version_branch}.{version_build}'

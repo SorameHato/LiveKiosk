@@ -1,7 +1,10 @@
 import git, os, sys, pathlib
 
-repo_dir = str(pathlib.Path(os.path.abspath(__file__)).parent.parent)
-repo = git.Repo(repo_dir)
+repo_dir = pathlib.Path(os.path.abspath(__file__)).parent.parent
+git_dir = repo_dir.joinpath('git','cmd','git.ext')
+
+git.refresh(str(git_dir))
+repo = git.Repo(str(repo_dir))
 
 origin = repo.remotes.origin
 pull_info = origin.pull()

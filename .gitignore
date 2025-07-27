@@ -163,4 +163,5 @@ cython_debug/
 *.json
 *.db
 /src/obs-profile
-/src/PortableGit
+/git
+/python
