@@ -4,7 +4,7 @@ import pathlib
 import winreg as reg
 
 parent_folder = pathlib.Path(__file__).parent.parent
-python_install_path = parent_folder.joinpath('python','PCbuild','amd64')
+python_install_path = parent_folder.parent.joinpath('python','PCbuild','amd64')
 python_path = python_install_path.joinpath('python.exe')
 script_path = parent_folder.joinpath('update.pyw')  # 현재 실행 중인 스크립트 경로
 reg_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
@@ -55,7 +55,7 @@ shell_link2 = pythoncom.CoCreateInstance(
     shell.CLSID_ShellLink, None,
     pythoncom.CLSCTX_INPROC_SERVER, shell.IID_IShellLink
 )
-shell_link2.SetPath(str(parent_folder))  # 바로가기가 열 폴더 경로 설정
+shell_link2.SetPath(str(parent_folder.parent))  # 바로가기가 열 폴더 경로 설정
 shell_link2.SetDescription('LiveKiosk가 설치된 폴더를 엽니다.')
 persist_file = shell_link2.QueryInterface(pythoncom.IID_IPersistFile)
 persist_file.Save(shortcut_path2, 0)
@@ -73,6 +73,6 @@ for i in range(len(global_txt)):
         global_txt[i] = 'Path64bit=' + str(python_install_path) + '\n'
         break
 if not python_Settings_Found:
-    global_txt.append('\n','[Python]\n','Path64bit=' + str(python_install_path) + '\n')
+    global_txt.append(['\n','[Python]\n','Path64bit=' + str(python_install_path) + '\n'])
 with obs_setting_ini.open('w', encoding='utf-8-sig') as f:
     f.writelines(global_txt)
