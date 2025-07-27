@@ -4,7 +4,8 @@ import pathlib
 import winreg as reg
 
 parent_folder = pathlib.Path(__file__).parent.parent
-python_path = parent_folder.joinpath('python','PCbuild','amd64','python.exe')
+python_install_path = parent_folder.joinpath('python','PCbuild','amd64')
+python_path = python_install_path.joinpath('python.exe')
 script_path = parent_folder.joinpath('update.pyw')  # 현재 실행 중인 스크립트 경로
 reg_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
 key = reg.OpenKey(reg.HKEY_CURRENT_USER, reg_path, 0, reg.KEY_SET_VALUE)
@@ -19,7 +20,7 @@ from win32comext.shell import shell
 # 현재 스크립트 파일의 폴더 경로 선택
 # 상위 폴더의 settings.pyw 경로
 setting_path = parent_folder.joinpath("setting.pyw")
-pythonw_path = python_path.with_name('pythonw.exe')
+pythonw_path = python_install_path.joinpath('pythonw.exe')
 shortcut_folder = os.path.join(os.getenv('APPDATA'), r'Microsoft\Windows\Start Menu\Programs\LiveKiosk')
 # 폴더가 없으면 생성
 os.makedirs(shortcut_folder, exist_ok=True)
@@ -58,3 +59,20 @@ shell_link2.SetPath(str(parent_folder))  # 바로가기가 열 폴더 경로 설
 shell_link2.SetDescription('LiveKiosk가 설치된 폴더를 엽니다.')
 persist_file = shell_link2.QueryInterface(pythoncom.IID_IPersistFile)
 persist_file.Save(shortcut_path2, 0)
+
+obs_path = pathlib.Path(os.getenv('APPDATA')).joinpath('obs-studio')
+obs_setting_ini = obs_path.joinpath('user.ini')
+python_Settings_Found = False
+if not obs_setting_ini.is_file():
+    obs_setting_ini = obs_path.joinpath('global.ini')
+with obs_setting_ini.open('r',encoding='utf-8-sig') as f:
+    global_txt = f.readlines()
+for i in range(len(global_txt)):
+    if global_txt[i].startswith('Path64bit='):
+        python_Settings_Found = True
+        global_txt[i] = 'Path64bit=' + str(python_install_path) + '\n'
+        break
+if not python_Settings_Found:
+    global_txt.append('\n','[Python]\n','Path64bit=' + str(python_install_path) + '\n')
+with obs_setting_ini.open('w', encoding='utf-8-sig') as f:
+    f.writelines(global_txt)

@@ -158,13 +158,13 @@ def broadcast_recording_status():
             print("WebSocket 오류:", e)
 
 def stream_restart():
-    mode = db.get_setting('obs_renew_enabled')
+    mode = db.get_setting('stream_autocreate_enabled')
     if mode == '0':
         return
     else:
         while True:
             if mode == '1':
-                time.sleep(int(db.get_setting('stream_autorestart_dur')*60))
+                time.sleep(int(db.get_setting('stream_autorestart_dur'))*60)
             else:
                 import pause
                 now = datetime.datetime.now()

@@ -278,13 +278,16 @@ class init(QThread):
             profile_title = f'LiveKiosk v{__version__} (클라이언트명 : LiveKiosk {youtube.get_mac()}, 마지막 초기화 : {now.isoformat(timespec='milliseconds')})'
 
             # ConfigParser 객체 생성
-            with obs_path.joinpath('global.ini').open('r',encoding='utf-8-sig') as f:
+            obs_setting_ini = obs_path.joinpath('user.ini')
+            if not obs_setting_ini.is_file():
+                obs_setting_ini = obs_path.joinpath('global.ini')
+            with obs_setting_ini.open('r',encoding='utf-8-sig') as f:
                 global_txt = f.readlines()
             for i in range(len(global_txt)):
                 if global_txt[i].startswith('Profile='):
                     global_txt[i] = 'Profile=' + profile_title + '\n'
                     break
-            with open(str(obs_path.joinpath('global.ini')), 'w', encoding='utf-8-sig') as f:
+            with obs_setting_ini.open('w', encoding='utf-8-sig') as f:
                 f.writelines(global_txt)
 
             # ini 파일 읽기
