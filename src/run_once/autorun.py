@@ -13,8 +13,7 @@ reg.CloseKey(key)
 import os
 from pathlib import Path
 import pythoncom
-from win32comext.shell import shell, shellcon
-from pyshortcuts import make_shortcut
+from win32comext.shell import shell
 
 # 현재 스크립트 파일의 폴더 경로 선택
 # 상위 폴더의 settings.pyw 경로
