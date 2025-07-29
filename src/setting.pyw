@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QTextEdit, QFileDialog, QButtonGroup, QScrollArea,
     QPushButton, QTableWidget, QTableWidgetItem, QCheckBox, QHeaderView, QTimeEdit, QMessageBox, QComboBox, QRadioButton
 )
-from PyQt6.QtGui import QFont, QGuiApplication, QIntValidator
+from PyQt6.QtGui import QFont, QGuiApplication, QIntValidator, QFontDatabase
 from PyQt6.QtCore import Qt, QTimer
 from __init__ import __version__
 
@@ -53,7 +53,7 @@ class SettingUI(QWidget):
         self.steps = [
             [self.SettingUI8,'client_secret 설정','발급받은 client_secret을 입력해주세요. 만약 초기 설정 중에 프로그램이 다운되었고 이미 저장된 client_secret이 있는 경우, 다음으로 넘어가셔도 됩니다.',8],
             [self.SettingUI4_1,'YouTube API 연동 설정','LiveKiosk에서 사용하실 YouTube API와 스트림 키를 연동하실 수 있습니다.',4],
-            [self.SettingUI9,'OBS 프로파일, 장면 변경','OBS Studio에서 사용하고 있는 프로파일과 장면을 선택해 주세요. 현재 사용중인 프로파일과 장면은 OBS Studio의 제목 표시줄에 표시됩니다.',9],
+            [self.SettingUI9,'OBS 프로파일, 장면 선택','OBS Studio에서 사용하고 있는 프로파일과 장면을 선택해 주세요. 현재 사용중인 프로파일과 장면은 OBS Studio의 제목 표시줄에 표시됩니다.',9],
             [self.SettingUI1,'점포명, 기기명 설정','LiveKiosk 프로그램 내외부와 스트리밍의 제목, 설명에 표시되는 점포명과 기기명을 설정하실 수 있습니다.',1],
             [self.SettingUI0,'영업시간 설정','영업시간을 설정하실 수 있습니다. LiveKiosk를 이용하면 영업시간에 맞춰 컴퓨터를 종료하실 수 있습니다.',0],
             [self.SettingUI2,'LiveKiosk 기본 기능 설정','자동 종료 기능, 녹화 파일 자동 삭제 기능과 관련된 설정을 하실 수 있습니다.',2],
@@ -420,7 +420,7 @@ class SettingUI(QWidget):
         self.table = QTableWidget()
         self.table.setFixedSize(480,250)
         self.table.setColumnCount(3)
-        self.table.setHorizontalHeaderLabels(["요일", "운영 시작 시간", "운영 종료 시간"])
+        self.table.setHorizontalHeaderLabels(["요일", "영업 시작 시간", "영업 종료 시간"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.load_table_data()
 
@@ -439,14 +439,14 @@ class SettingUI(QWidget):
 
         # 운영 시작 시간 입력
         time_layout = QHBoxLayout()
-        self.start_time_checkbox = QCheckBox("운영 시작 시간:")
+        self.start_time_checkbox = QCheckBox("영업 시작 시간:")
         time_layout.addWidget(self.start_time_checkbox)
         self.start_time_edit = QTimeEdit()
         self.start_time_edit.setDisplayFormat('hh:mm')
         time_layout.addWidget(self.start_time_edit)
 
         # 운영 종료 시간 입력
-        self.end_time_checkbox = QCheckBox("운영 종료 시간:")
+        self.end_time_checkbox = QCheckBox("영업 종료 시간:")
         time_layout.addWidget(self.end_time_checkbox)
         self.end_time_edit = QTimeEdit()
         self.end_time_edit.setDisplayFormat('hh:mm')
@@ -647,7 +647,7 @@ class SettingUI(QWidget):
         self.checkBox.append(self.addSettingIndex_CheckBox(layout,'위젯에 녹화버튼 추가','OBS Studio의 LiveKiosk 위젯에 녹화버튼을 추가할지 선택해 주세요. 방송 종료를 방지하기 위해 제어 독을 없앤 경우에 유용합니다.',get_setting('obs_record_button_enabled')))
         layout.addSpacing(20)
 
-        self.checkBox.append(self.addSettingIndex_CheckBox(layout,'스트림키 초기화 기능 사용','OBS에서 사용하는 스트림 키를 매일 LiveKiosk의 스트림 키로 초기화할지 선택해 주세요. 누군가가 마음대로 OBS Studio와 자신의 채널을 연결해 놔도, 매일 초기화할 때 자동으로 LiveKiosk와 연동된 채널의 스트림 키로 변경됩니다.',get_setting('streamkey_renew_enabled')))
+        self.checkBox.append(self.addSettingIndex_CheckBox(layout,'스트림 키 초기화 기능 사용','OBS에서 사용하는 스트림 키를 매일 LiveKiosk의 스트림 키로 초기화할지 선택해 주세요. 누군가가 마음대로 OBS Studio와 자신의 채널을 연결해 놔도, 매일 초기화할 때 자동으로 LiveKiosk와 연동된 채널의 스트림 키로 변경됩니다.',get_setting('streamkey_renew_enabled')))
         layout.addSpacing(20)
 
         self.inputBox.append(self.addSettingIndex_TextMultiLine(layout,'공지사항','OBS Studio의 LiveKiosk 위젯에 표시할 공지사항을 입력해 주세요.',get_setting('obs_widget_information')))
@@ -745,7 +745,7 @@ class SettingUI(QWidget):
         update_setting('setting_finished','1')
 
         layout.addWidget(self.addSettingIndex_Title('설정 완료'))
-        layout.addWidget(self.addSettingIndex_Desc('설정 내용을 전부 정확하게 입력하셨다면, 위쪽의 X 버튼을 눌러 이 창을 닫아주세요. 그리고, init.pyw 파일을 더블클릭해 정상적으로 작동하는지 테스트해보세요.'))
+        layout.addWidget(self.addSettingIndex_Desc('설정 내용을 전부 정확하게 입력하셨다면, 위쪽의 X 버튼을 눌러 이 창을 닫아주세요. 그리고, 시작 메뉴 > LiveKiosk 폴더 안에 있는 LiveKiosk를 더블클릭해 정상적으로 작동하는지 테스트해보세요.'))
 
         QTimer.singleShot(0, lambda: self.resize(500, 200))
 
@@ -1009,6 +1009,7 @@ class SettingUI(QWidget):
 if __name__ == "__main__":
     sys.argv += ['-platform', 'windows:darkmode=1']
     app = QApplication(sys.argv)
+    font_id = QFontDatabase.addApplicationFont('Pretendard-Regular.otf')
     # 현재 시스템 컬러 테마 가져오기 (Qt 6.5+)
     color_scheme = QGuiApplication.styleHints().colorScheme()
     if color_scheme == Qt.ColorScheme.Dark:

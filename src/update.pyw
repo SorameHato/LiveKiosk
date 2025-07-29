@@ -1,9 +1,12 @@
-import git, os, sys, pathlib
+import os, sys, pathlib
 
 repo_dir = pathlib.Path(os.path.abspath(__file__)).parent.parent
-git_dir = repo_dir.joinpath('git','cmd','git.ext')
+git_dir = repo_dir.joinpath('git','cmd','git.exe')
 
-git.refresh(str(git_dir))
+os.environ['GIT_PYTHON_GIT_EXECUTABLE'] = str(git_dir)
+
+import git
+
 repo = git.Repo(str(repo_dir))
 
 origin = repo.remotes.origin

@@ -6,7 +6,7 @@
 ## <a href="https://www.flaticon.com/free-icons/continue" title="continue icons">Continue icons created by meaicon - Flaticon</a>
 
 from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QLabel, QGridLayout
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtGui import QPixmap, QFontDatabase
 from PyQt6.QtCore import Qt, QTimer, QCoreApplication, QThread, pyqtSignal
 import pathlib, datetime, os, sys, subprocess, ctypes, time, hashlib, shutil, json
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))
@@ -153,10 +153,11 @@ def delete_old_files(file_loc: pathlib.Path, days_old: int = 30):
     for file in file_loc.iterdir():
         if file.is_file():
             try:
-                created_time = datetime.fromtimestamp(file.stat().st_ctime)
+                created_time = datetime.datetime.fromtimestamp(file.stat().st_ctime)
             except AttributeError:
                 # 일부 시스템은 생성 시간이 없을 수 있으므로, 수정 시간(st_mtime) 사용
-                created_time = datetime.fromtimestamp(file.stat().st_mtime)
+                created_time = datetime.datetime.fromtimestamp(file.stat().st_mtime)
+            created_time = created_time.astimezone(tz=datetime.timezone(datetime.timedelta(hours=9)))
             if created_time < threshold:
                 old_files.append(file)
 
@@ -215,8 +216,8 @@ class init(QThread):
             try:
                 now_tc = getTimeCode(now.hour, now.minute)
                 if not (now_tc >= (start_time - 10) and now_tc < end_time):
-                    self.addLog('영업시간이 아닙니다. 10초 후 시스템을 종료합니다.')
-                    subprocess.check_call(['shutdown','-s','-t','10','-c','운영시간이 아닙니다.'])
+                    self.addLog('영업시간이 아닙니다. 60초 후 시스템을 종료합니다.')
+                    subprocess.check_call(['shutdown','-s','-t','60','-c','영업시간이 아닙니다.'])
                 else:
                     self.addLog(f'오늘의 영업시간 : {getTimeStamp(start_time)} ~ {getTimeStamp(end_time)}')
                     subprocess.check_call(['shutdown','-s','-t',str((end_time-getTimeCode(now.hour,now.minute))*60),'-c',f'"오늘의 영업시간은 {getTimeStamp(end_time)} 까지입니다."'])
@@ -252,8 +253,12 @@ class init(QThread):
                 pf_basic = hashlib.sha512(f.read()).hexdigest()
             with service.open('rb') as f:
                 pf_service = hashlib.sha512(f.read()).hexdigest()
-            with pf_dir.joinpath('streamEncoder.json').open('rb') as f:
-                pf_streamEncoder = hashlib.sha512(f.read()).hexdigest()
+            stream_encoder = pf_dir.joinpath('streamEncoder.json')
+            if stream_encoder.is_file():
+                with stream_encoder.open('rb') as f:
+                    pf_streamEncoder = hashlib.sha512(f.read()).hexdigest()
+            else:
+                pf_streamEncoder=''
             with pathlib.Path(db.getOBSScenesPath(db.get_setting('obs_renew_scene_dir'))).open('rb') as f:
                 scene_dir = hashlib.sha512(f.read()).hexdigest()
 
@@ -319,7 +324,10 @@ class init(QThread):
             self.changePassFin(6)
 
         ## OBS 실행
-        ctypes.windll.shell32.ShellExecuteA(0, b'open', b'obs64.exe',b'--startstreaming',b'C:\\Program Files\\obs-studio\\bin\\64bit',1)
+        if db.get_setting('stream_autocreate_enabled') == '1':
+            ctypes.windll.shell32.ShellExecuteA(0, b'open', b'obs64.exe',b'--startstreaming',b'C:\\Program Files\\obs-studio\\bin\\64bit',1)
+        else:
+            ctypes.windll.shell32.ShellExecuteA(0, b'open', b'obs64.exe',b'',b'C:\\Program Files\\obs-studio\\bin\\64bit',1)
 
         ## TODO : 이거 팝업창이나 하단 라벨로 띄우기
         self.addLog('자동 초기화가 완료되었습니다. 이 창은 1분 후 자동으로 닫힙니다.')
@@ -350,9 +358,11 @@ class init(QThread):
 def main():
     sys.argv += ['-platform', 'windows:darkmode=1']
     app = QApplication(sys.argv)
+    font_id = QFontDatabase.addApplicationFont('Pretendard-Regular.otf')
+    print(font_id)
     window = MainWindow()
     window.show()
-    # QTimer.singleShot(1000, window.start_init)
+    QTimer.singleShot(1000, window.start_init)
     sys.exit(app.exec())
 
 if __name__ == "__main__":
