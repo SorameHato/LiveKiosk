@@ -540,7 +540,7 @@ class SettingUI(QWidget):
         self.checkBox : list[QCheckBox] = []
 
         layout.addWidget(self.addSettingIndex_Title('연결된 계정 정보'))
-        self.channel_label = self.addSettingIndex_Desc(f'채널 명 : {get_setting('channel_name')}\n스트림 키 : {get_setting('channel_stream_key')}\n현재 기기 : LiveKiosk {get_mac()}')
+        self.channel_label = self.addSettingIndex_Desc(f'채널 명 : {get_setting('channel_name')}\n스트림 키 (이 스트림 키를 OBS Studio에 추가해주세요) : {get_setting('channel_stream_key')}\n현재 기기 : LiveKiosk {get_mac()}')
         layout.addWidget(self.channel_label)
         layout.addSpacing(10)
 

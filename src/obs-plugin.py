@@ -112,7 +112,7 @@ if recordBtn_enable:
             ws.send(JSON.stringify({ type: "toggle_recording" }));
         }
     </script>'''
-html += '\n</body>\n</html>'
+html += '\n<div class="log"><a href="./policy.html">개인정보처리방침(Privacy Policy)</a></div></body>\n</html>'
 
 @app.get("/")
 def get_page():
