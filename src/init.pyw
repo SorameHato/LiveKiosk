@@ -18,7 +18,7 @@ from __init__ import version, version_build, version_branch, __version__
 now = datetime.datetime.now(tz=datetime.timezone(datetime.timedelta(hours=9)))
 file_loc = pathlib.Path(__file__).parent
 
-right_width = 530
+right_width = 640
 work_count = 7
 
 class MainWindow(QMainWindow):
@@ -27,39 +27,40 @@ class MainWindow(QMainWindow):
         self.load_list : list[list[QLabel]] = []
         self.log_label : QLabel = None
         self.setWindowTitle(f"LiveKiosk v{version}-{version_branch}.{version_build}")
-        self.setFixedSize(400+right_width, 700)  # 1. 창 크기 고정
-
-        # 메인 수평 레이아웃
-        main_widget = QWidget()
-        self.setCentralWidget(main_widget)
-        main_layout = QHBoxLayout(main_widget)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-
-        # QV1 (왼쪽 영역)
-        left_widget = QWidget()
-        left_widget.setFixedSize(387, 688)
-        v1_layout = QVBoxLayout(left_widget)
-        v1_layout.setContentsMargins(0,0,0,0)
-        v1_layout.setSpacing(0)
-        
-        # 3. 이미지 로딩 (369x656)
-        image_label = QLabel()
-        image_label.setFixedSize(387,688)
-        pixmap = QPixmap(str(file_loc.joinpath('image','cover.png'))).scaled(387, 688, Qt.AspectRatioMode.KeepAspectRatio)
-        image_label.setPixmap(pixmap)
-        image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        v1_layout.addWidget(image_label)
+        self.setFixedSize(right_width, 750)  # 1. 창 크기 고정
 
         # QV2 (오른쪽 영역)
         right_widget = QWidget()
-        right_widget.setFixedSize(right_width, 700)
+        self.setCentralWidget(right_widget)
+        right_widget.setFixedSize(right_width, 750)
         v2_layout = QVBoxLayout(right_widget)
         v2_layout.setContentsMargins(0, 0, 0, 0)
         v2_layout.setSpacing(4)
 
+        # # 메인 수평 레이아웃
+        # main_widget = QWidget()
+        # self.setCentralWidget(main_widget)
+        # main_layout = QHBoxLayout(main_widget)
+        # main_layout.setContentsMargins(0, 0, 0, 0)
+
+        # # QV1 (왼쪽 영역)
+        # left_widget = QWidget()
+        # left_widget.setFixedSize(387, 688)
+        # v1_layout = QVBoxLayout(left_widget)
+        # v1_layout.setContentsMargins(0,0,0,0)
+        # v1_layout.setSpacing(0)
+        
+        # 3. 이미지 로딩 (369x656)
+        image_label = QLabel()
+        image_label.setFixedSize(640,100)
+        pixmap = QPixmap(str(file_loc.joinpath('image','cover2.png'))).scaled(640, 100, Qt.AspectRatioMode.KeepAspectRatio)
+        image_label.setPixmap(pixmap)
+        image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        v2_layout.addWidget(image_label)
+
         # 4-I. 상단 텍스트 레이블
-        top_label = QLabel(f"LiveKiosk v{version}\n분기 : {version_branch}, 분기 내 버전 : {version_build}")
-        top_label.setFixedSize(right_width, 55)
+        top_label = QLabel(f"LiveKiosk v{version} (분기 : {version_branch}, 분기 내 버전 : {version_build})")
+        top_label.setFixedSize(right_width, 25)
         top_label.setStyleSheet("font-size: 20px;")
         top_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
         v2_layout.addWidget(top_label)
@@ -81,7 +82,7 @@ class MainWindow(QMainWindow):
             icon.setPixmap(pixmap)
             
             # 250x50 텍스트
-            text = QLabel("Hello World")
+            text = QLabel("")
             text.setFixedSize(right_width-40, 40)
             text.setStyleSheet("font-size:18px;")
             
@@ -96,9 +97,9 @@ class MainWindow(QMainWindow):
 
         v2_layout.addLayout(grid)
         
-        # 레이아웃 조립
-        main_layout.addWidget(left_widget)
-        main_layout.addWidget(right_widget)
+        # # 레이아웃 조립
+        # main_layout.addWidget(left_widget)
+        # main_layout.addWidget(right_widget)
 
         # 각 리스트 설명 수정
         self.load_list[0][1].setText('DB 연결')
