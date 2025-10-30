@@ -216,7 +216,8 @@ class init(QThread):
 
             try:
                 now_tc = getTimeCode(now.hour, now.minute)
-                if not (now_tc >= (start_time - 10) and now_tc < end_time):
+                # if not (now_tc >= (start_time - 10) and now_tc < end_time):
+                if not (now_tc < end_time):
                     self.addLog('영업시간이 아닙니다. 60초 후 시스템을 종료합니다.')
                     subprocess.check_call(['shutdown','-s','-t','60','-c','영업시간이 아닙니다.'])
                 else:
