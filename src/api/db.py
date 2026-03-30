@@ -2,7 +2,7 @@ import sys, pathlib, os, sqlite3, bcrypt, keyring, hashlib, base64, json, uuid
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 from typing import Literal, get_args
-db_ver = 0
+db_ver = 1
 
 '''
 DB 구조
@@ -15,6 +15,7 @@ EnvName = Literal[
     'pw', #해시된 비밀번호
     'mac', #이 PC의 MAC 주소
     'setting_finished', #초기설정이 끝났는지
+    'essential_mode_enabled', #LiveKiosk Essential (경량모드) 활성화됐는지
 
     # 1. 방송 장비, 시스템과 관련된 항목
     'center_name',              # 오락실 명
@@ -26,7 +27,8 @@ EnvName = Literal[
     'channel_stream_id',        # 채널 스트리밍 키 ID
     'channel_stream_key',       # 채널 스트리밍 키
     'streamkey_renew_enabled',  # 채널 스트림키 자동 renew 활성화할지
-    'shutdown_enabled',         # 자동 종료 (영업시간 체크) 활성화 여부
+    'shutdown_enabled',         # 자동 종료 (영업시간 체크) 활성화 여부 (영업 종료시 자동 shutdown)
+    'shutdown_outside_operation_times_enabled',     # 영업시간 아닐 때 부팅되면 종료할 지 여부
 
     # 2. 방송, OBS Studio와 관련된 항목
     'stream_title',                 # 방송 타이틀
@@ -55,9 +57,10 @@ db_default = [('ver',str(db_ver)),('pw',''),('mac',get_mac()),('center_name','')
     ('record_loc',''),('record_delete_enabled','0'),('record_delete_dur','90'),('channel_name',''),
     ('channel_stream_id',''),('channel_stream_key',''),('streamkey_renew_enabled','0'),('shutdown_enabled','0'),
     ('stream_title',''),('stream_desc',''),('stream_center',''),('stream_device',''),('stream_autocreate_enabled','1'),
-    ('stream_autorestart_enabled','0'),('stream_autorestart_dur','710'),('obs_renew_enabled',1),('obs_renew_pf_dir',''),
+    ('stream_autorestart_enabled','0'),('stream_autorestart_dur','710'),('obs_renew_enabled','1'),('obs_renew_pf_dir',''),
     ('obs_renew_scene_dir',''),('obs_path',str(pathlib.Path(os.getenv('APPDATA')).joinpath('obs-studio'))),
-    ('obs_record_button_enabled','0'),('obs_widget_information',''),('setting_finished',0)
+    ('obs_record_button_enabled','0'),('obs_widget_information',''),('setting_finished','0'),
+    ('shutdown_outside_operation_times_enabled','0'),('essential_mode_enabled','0') #5.0버전 신기능
 ]
 
 def _create_db():
@@ -216,6 +219,20 @@ def get_temp(name:TempName) -> str:
 def update_temp(name:TempName, value:str) -> None:
     with __connectDB() as (sql_con, sql_cur):
         sql_cur.execute('INSERT INTO temp (name, value) VALUES (:name, :value) ON CONFLICT(name) DO UPDATE SET value = excluded.value;', {'name':name,'value':value})
+
+def db_upg_0to1():
+    with __connectDB() as (sql_con, sql_cur):
+        db_default = [('shutdown_outside_operation_times_enabled','0'),('essential_mode_enabled','0')]
+        sql_cur.executemany('INSERT INTO env VALUES (?, ?)', db_default)
+
+UPGRADES = [db_upg_0to1]
+
+def db_update():
+    cur_db_ver = int(get_setting('ver'))
+    while cur_db_ver < db_ver:
+        UPGRADES[cur_db_ver]()   # 해당 단계 업그레이드 실행
+        cur_db_ver += 1
+        update_setting('ver', cur_db_ver)  # 버전 업데이트
 
 
 
