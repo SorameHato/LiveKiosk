@@ -12,7 +12,7 @@ import googleapiclient.discovery
 import googleapiclient.errors
 import googleapiclient.http
 
-scopes = ['https://www.googleapis.com/auth/youtube.force-ssl','https://www.googleapis.com/auth/youtube.readonly']
+scopes = ['https://www.googleapis.com/auth/youtube']
 
 api_service_name = "youtube"
 api_version = "v3"
@@ -46,7 +46,9 @@ def re_auth():
         flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_config(secret,scopes)
         credentials = flow.run_local_server(port=0)
         db.update_credentials(credentials.to_json())
-        return credentials
+        youtube = googleapiclient.discovery.build(
+            api_service_name, api_version, credentials=credentials)
+        return youtube
     else:
         return None
 
