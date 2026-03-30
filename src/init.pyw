@@ -1,254 +1,357 @@
-## todo : 메인 창 생성, 항목 : 왼쪽엔 간단한 그림, 오른쪽엔
-## 맨 위 : 오락실 명, 기기 명 등
-## 아래 : 왼쪽(완료 여부 표시), 오른쪽(각 항목 이름)의 표
-## 항목 이름 : DB 연결, 운영시간 확인, 자동 종료 설정, 방송 생성, 녹화본 삭제, OBS 계정 연결 초기화, OBS 실행행
-## <a href="https://www.flaticon.com/free-icons/tick" title="tick icons">Tick icons created by Maxim Basinski Premium - Flaticon</a>
-## <a href="https://www.flaticon.com/free-icons/continue" title="continue icons">Continue icons created by meaicon - Flaticon</a>
-
-from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QLabel, QGridLayout
-from PyQt6.QtGui import QPixmap, QFontDatabase
-from PyQt6.QtCore import Qt, QTimer, QCoreApplication, QThread, pyqtSignal
-import pathlib, datetime, os, sys, subprocess, ctypes, time, hashlib, shutil, json
+import sys, pathlib, os, datetime, subprocess, hashlib, shutil, json, ctypes
+from PySide6.QtWidgets import (
+    QApplication, QWidget, QLabel,
+    QVBoxLayout, QHBoxLayout
+)
+from PySide6.QtGui import (
+    QPixmap, QFontDatabase, QFont,
+    QGuiApplication
+)
+from PySide6.QtCore import (
+    Qt, QPropertyAnimation, QEasingCurve, QTimer,
+    QParallelAnimationGroup, QRect, QThread, Signal
+)
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
-from api import youtube, db
-from api.db import getTimeCode, getWeekdayCode, getTimeStamp
 from __init__ import version, version_build, version_branch, __version__
 now = datetime.datetime.now(tz=datetime.timezone(datetime.timedelta(hours=9)))
 file_loc = pathlib.Path(__file__).parent
 
-right_width = 640
-work_count = 7
+MESSAGE_COUNT = 9
+MESSAGE_LIST = ['LiveKiosk를 실행하는 중…\nLoading LiveKiosk…',
+                'DB를 읽는 중…\nReading DB…',
+                'Google API의 토큰 상태를 확인하는 중…\nChecking token status of Google API…',
+                '영업시간을 확인하는 중…\nChecking operation time…',
+                '스트리밍을 생성하는 중…\nCreating Streaming…',
+                '오래된 녹화 파일을 삭제하는 중…\nDeleting old recording files…',
+                'OBS Studio 설정을 백업하는 중…\nBacking settings of OBS Studio up…',
+                'YouTube 채널의 스트림 키를 불러오는 중…\nGetting stream key of YouTube Channel…',
+                'OBS Studio를 실행하는 중…\n이 창은 약 10초 후 자동으로 닫힙니다.\nRunning OBS Studio…']
 
-class MainWindow(QMainWindow):
+class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
-        self.load_list : list[list[QLabel]] = []
-        self.log_label : QLabel = None
-        self.setWindowTitle(f"LiveKiosk v{version}-{version_branch}.{version_build}")
-        self.setFixedSize(right_width, 750)  # 1. 창 크기 고정
 
-        # QV2 (오른쪽 영역)
-        right_widget = QWidget()
-        self.setCentralWidget(right_widget)
-        right_widget.setFixedSize(right_width, 750)
-        v2_layout = QVBoxLayout(right_widget)
-        v2_layout.setContentsMargins(0, 0, 0, 0)
-        v2_layout.setSpacing(4)
+        # self.dev_mode = 1
+        # self._drag_pos = None
+        self._is_closing = False
+        self._close_fin = False
+        self.cur_step = 0
 
-        # # 메인 수평 레이아웃
-        # main_widget = QWidget()
-        # self.setCentralWidget(main_widget)
-        # main_layout = QHBoxLayout(main_widget)
-        # main_layout.setContentsMargins(0, 0, 0, 0)
+        self.setFixedSize(960, 400)
+        self.setWindowTitle(f"LiveKiosk")
+        self.setWindowFlags(Qt.FramelessWindowHint)
+        self.setStyleSheet("background-color: #1c1b39;")
 
-        # # QV1 (왼쪽 영역)
-        # left_widget = QWidget()
-        # left_widget.setFixedSize(387, 688)
-        # v1_layout = QVBoxLayout(left_widget)
-        # v1_layout.setContentsMargins(0,0,0,0)
-        # v1_layout.setSpacing(0)
-        
-        # 3. 이미지 로딩 (369x656)
+        font_id = QFontDatabase.addApplicationFont("Pretendard-Regular.otf")
+        family = QFontDatabase.applicationFontFamilies(font_id)[0]
+
+        main_layout = QVBoxLayout()
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+        self.setLayout(main_layout)
+
+        # 상단
+        top_layout = QHBoxLayout()
+        top_layout.setContentsMargins(8, 4, 8, 0)
+
+        #left_label = QLabel("고객의 자유를 보장하는 오픈 소스 소프트웨어")
+        left_label = QLabel('')
+        left_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        left_label.setStyleSheet("color: #ffffff; font-size: 20px;")
+        left_label.setFont(QFont(family))
+        self.ad_label = left_label
+
+        right_label = QLabel(f"v{version}-{version_branch}.{version_build}")
+        right_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        right_label.setStyleSheet("color: #ffffff; font-size: 20px;")
+        right_label.setFont(QFont(family))
+
+        top_layout.addWidget(left_label)
+        top_layout.addWidget(right_label)
+
+        top_widget = QWidget()
+        top_widget.setLayout(top_layout)
+        top_widget.setFixedHeight(30)
+        main_layout.addWidget(top_widget)
+
+        # 이미지
         image_label = QLabel()
-        image_label.setFixedSize(640,100)
-        pixmap = QPixmap(str(file_loc.joinpath('image','cover2.png'))).scaled(640, 100, Qt.AspectRatioMode.KeepAspectRatio)
-        image_label.setPixmap(pixmap)
-        image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        v2_layout.addWidget(image_label)
+        image_label.setFixedHeight(100)
 
-        # 4-I. 상단 텍스트 레이블
-        top_label = QLabel(f"LiveKiosk v{version} (분기 : {version_branch}, 분기 내 버전 : {version_build})")
-        top_label.setFixedSize(right_width, 25)
-        top_label.setStyleSheet("font-size: 20px;")
-        top_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        v2_layout.addWidget(top_label)
+        pixmap = QPixmap(".\\image\\cover.png")
 
-        top_label2 = QLabel(f"방송장비를 초기화하는 중…\nDeveloped by 2011-2025 SkyWare <Hato Sorame> License: GPL v3\n")
-        top_label2.setFixedWidth(right_width)
-        top_label2.setStyleSheet("font-size: 14px;")
-        top_label2.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        top_label2.setWordWrap(True) # 자동 줄바꿈 설정
-        self.log_label = top_label2
-        v2_layout.addWidget(top_label2)
+        screen = QGuiApplication.primaryScreen()
+        dpr = screen.devicePixelRatio()   # 보통 1.0, 1.25, 1.5, 2.0 등
+        target_w = int(640 * dpr)
+        target_h = int(100 * dpr)
 
-        # 4-II. 그리드 레이아웃
-        grid = QGridLayout()
-        for row in range(work_count):
-            # 50x50 이미지
-            icon = QLabel()
-            pixmap = QPixmap(str(file_loc.joinpath('image','load.png'))).scaled(40, 40)
-            icon.setPixmap(pixmap)
-            
-            # 250x50 텍스트
-            text = QLabel("")
-            text.setFixedSize(right_width-40, 40)
-            text.setStyleSheet("font-size:18px;")
-            
-            # 행 구성
-            container = QWidget()
-            container_layout = QHBoxLayout(container)
-            container_layout.addWidget(icon)
-            container_layout.addWidget(text)
-            
-            grid.addWidget(container, row, 0)
-            self.load_list.append([icon, text])
+        scaled = pixmap.scaled(target_w, target_h, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
 
-        v2_layout.addLayout(grid)
-        
-        # # 레이아웃 조립
-        # main_layout.addWidget(left_widget)
-        # main_layout.addWidget(right_widget)
+        x = (scaled.width() - target_w) // 2
+        y = (scaled.height() - target_h) // 2
+        cropped = scaled.copy(x, y, target_w, target_h)
+        cropped.setDevicePixelRatio(dpr)
 
-        # 각 리스트 설명 수정
-        self.load_list[0][1].setText('DB 연결')
-        self.load_list[1][1].setText('Youtube API 채널 인증정보 연결')
-        self.load_list[2][1].setText('영업시간 확인, 자동 종료 설정')
-        self.load_list[3][1].setText('스트리밍 생성')
-        self.load_list[4][1].setText('오래된 녹화 파일 삭제')
-        self.load_list[5][1].setText('OBS Studio 프로파일, 장면 백업')
-        self.load_list[6][1].setText('YouTube 채널 스트림키 초기화')
+        image_label.setPixmap(cropped)
+        image_label.setAlignment(Qt.AlignCenter)
 
-        self.init_thread = init()   # ✔ QThread 수명 관리 (self의 속성으로 보관)
-        self.init_thread.addLogSignal.connect(self.addLog)      # UI 갱신용 슬롯 연결
+        main_layout.addWidget(image_label)
+
+        # 중앙
+        center_label = QLabel("방송을 준비하는 중입니다.<br>\nPC를 <span style=\"color:#ff6666;\">조작하지 말고</span>, 잠시만 기다려 주십시오.")
+        center_label.setTextFormat(Qt.RichText)
+        center_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        center_label.setStyleSheet("color: #ffffff; font-size: 40px;")
+        center_label.setFont(QFont(family))
+        center_label.setFixedHeight(90)
+
+        main_layout.addWidget(center_label)
+
+        # 상태표시용
+        log_label = QLabel('')
+        log_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        log_label.setStyleSheet("color: #ffffff; font-size: 35px;")
+        log_label.setFont(QFont(family))
+        log_label.setFixedHeight(130)
+        log_label.setWordWrap(True) #자동 줄바꿈
+        self.log_label = log_label
+
+        main_layout.addWidget(log_label)
+        self.goNextStep()
+
+        # 하단
+        bottom_label = QLabel("LiveKiosk™& ⓒ2011-2026 SkyWare <Hato Sorame> All Rights Reserved.")
+        bottom_label.setAlignment(Qt.AlignLeft | Qt.AlignmentFlag.AlignBottom)
+        bottom_label.setStyleSheet("color: #ffffff; font-size: 25px;")
+        bottom_label.setFont(QFont(family))
+        bottom_label.setContentsMargins(8, 0, 8, 4)
+
+        main_layout.addWidget(bottom_label)
+
+        self.center_on_screen()
+        self.setWindowOpacity(0.0)
+
+        self.init_thread = init()
         self.init_thread.setLogTextSignal.connect(self.setLogText)
-        self.init_thread.changeWorkingSignal.connect(self.changeWorking)
-        self.init_thread.changeFinSignal.connect(self.changeFin)
-        self.init_thread.changePassSignal.connect(self.changePass)
-        self.init_thread.finishApp.connect(QCoreApplication.quit)
+        self.init_thread.goNextStepSignal.connect(self.goNextStep)
+        self.init_thread.setErrorLogSignal.connect(self.setErrorLogText)
+        self.init_thread.finishApp.connect(QApplication.quit)
 
     def start_init(self):
         if not self.init_thread.isRunning():  # 이미 실행 중이면 중복 방지
             self.init_thread.start()
 
-    def changeWorking(self, index:int):
-        label:QLabel=self.load_list[index][0]
-        pixmap = QPixmap(str(file_loc.joinpath('image','pass.png'))).scaled(40, 40)
-        label.setPixmap(pixmap)
-
-    def changeFin(self, index:int):
-        label:QLabel=self.load_list[index][0]
-        pixmap = QPixmap(str(file_loc.joinpath('image','fin.png'))).scaled(40, 40)
-        label.setPixmap(pixmap)
-
-    def changePass(self, index:int):
-        label:QLabel=self.load_list[index][0]
-        pixmap = QPixmap(str(file_loc.joinpath('image','working.png'))).scaled(40, 40)
-        label.setPixmap(pixmap)
-
-    def addLog(self, text:str):
-        self.log_label.setText(self.log_label.text() + '\n' + text)
-
     def setLogText(self, text:str):
         self.log_label.setText(text)
 
-def delete_old_files(file_loc: pathlib.Path, days_old: int = 30):
-    threshold = now - datetime.timedelta(days=days_old)
-    old_files = []
+    def setErrorLogText(self, text:str):
+        self.log_label.setText(text)
+        self.log_label.setStyleSheet("color: #ffffff; font-size: 20px;")
 
-    # 디렉터리 존재 및 유효성 체크
-    if not file_loc.exists() or not file_loc.is_dir():
-        return f"디렉터리가 존재하지 않거나 디렉터리가 아닙니다: {file_loc}"
+    def goNextStep(self):
+        if self.cur_step >= MESSAGE_COUNT:
+            return
+        self.setLogText(f'[{self.cur_step+1}/{MESSAGE_COUNT}] {MESSAGE_LIST[self.cur_step]}')
+        self.cur_step += 1
 
-    for file in file_loc.iterdir():
-        if file.is_file():
-            try:
-                created_time = datetime.datetime.fromtimestamp(file.stat().st_ctime)
-            except AttributeError:
-                # 일부 시스템은 생성 시간이 없을 수 있으므로, 수정 시간(st_mtime) 사용
-                created_time = datetime.datetime.fromtimestamp(file.stat().st_mtime)
-            created_time = created_time.astimezone(tz=datetime.timezone(datetime.timedelta(hours=9)))
-            if created_time < threshold:
-                old_files.append(file)
 
-    for old_file in old_files:
-        old_file.unlink()  # 파일 삭제
+    # 여기부턴 ChatGPT가 자동으로 생성해 준 코드들
 
-    return f"녹화된 지 {days_old}일이 지난 녹화 파일 {len(old_files)}개를 삭제했습니다."
+    def center_on_screen(self):
+        screen = QGuiApplication.primaryScreen()
+        geo = screen.availableGeometry()
 
+        x = geo.x() + (geo.width() - self.width()) // 2
+        y = geo.y() + (geo.height() - self.height()) // 2
+
+        self.move(x, y)
+
+    # ===== Mac 스타일 fade + scale =====
+    def showEvent(self, event):
+        self.mac_fade_in()
+        super().showEvent(event)
+
+    def mac_fade_in(self):
+        end_rect = self.geometry()
+
+        scale = 0.96
+        w = int(end_rect.width() * scale)
+        h = int(end_rect.height() * scale)
+
+        start_rect = QRect(
+            end_rect.center().x() - w // 2,
+            end_rect.center().y() - h // 2,
+            w, h
+        )
+
+        # opacity
+        opacity_anim = QPropertyAnimation(self, b"windowOpacity")
+        opacity_anim.setDuration(300)
+        opacity_anim.setStartValue(0.0)
+        opacity_anim.setEndValue(1.0)
+        opacity_anim.setEasingCurve(QEasingCurve.OutCubic)
+
+        # geometry (scale)
+        # geo_anim = QPropertyAnimation(self, b"geometry")
+        # geo_anim.setDuration(300)
+        # geo_anim.setStartValue(start_rect)
+        # geo_anim.setEndValue(end_rect)
+        # geo_anim.setEasingCurve(QEasingCurve.OutCubic)
+
+        self.anim_group = QParallelAnimationGroup()
+        self.anim_group.addAnimation(opacity_anim)
+        #self.anim_group.addAnimation(geo_anim)
+        self.anim_group.start()
+
+    def fade_out_and_close(self):
+        if self._is_closing:
+            return
+
+        self._is_closing = True
+
+        start_rect = self.geometry()
+
+        scale = 0.96
+        w = int(start_rect.width() * scale)
+        h = int(start_rect.height() * scale)
+
+        end_rect = QRect(
+            start_rect.center().x() - w // 2,
+            start_rect.center().y() - h // 2,
+            w, h
+        )
+
+        opacity_anim = QPropertyAnimation(self, b"windowOpacity")
+        opacity_anim.setDuration(300)
+        opacity_anim.setStartValue(1.0)
+        opacity_anim.setEndValue(0.0)
+        opacity_anim.setEasingCurve(QEasingCurve.InCubic)
+
+        # geo_anim = QPropertyAnimation(self, b"geometry")
+        # geo_anim.setDuration(300)
+        # geo_anim.setStartValue(start_rect)
+        # geo_anim.setEndValue(end_rect)
+        # geo_anim.setEasingCurve(QEasingCurve.InCubic)
+
+        self.anim_group = QParallelAnimationGroup()
+        self.anim_group.addAnimation(opacity_anim)
+        #self.anim_group.addAnimation(geo_anim)
+
+        self.anim_group.finished.connect(self.final_close)
+        self.anim_group.start()
+
+    def final_close(self):
+        self._close_fin = True
+        QApplication.quit()
+
+    def closeEvent(self, event):
+        if self._close_fin:
+            event.accept()
+        elif not self._is_closing:
+            event.ignore()
+            self.fade_out_and_close()
+        else:
+            event.ignore()
+
+    # 드래그
+    # def mousePressEvent(self, event):
+    #     if self.dev_mode == 1 and event.button() == Qt.LeftButton:
+    #         self._drag_pos = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+    #         event.accept()
+
+    # def mouseMoveEvent(self, event):
+    #     if self.dev_mode == 1 and self._drag_pos and event.buttons() & Qt.LeftButton:
+    #         self.move(event.globalPosition().toPoint() - self._drag_pos)
+    #         event.accept()
+
+    # def mouseReleaseEvent(self, event):
+    #     self._drag_pos = None
 
 class init(QThread):
-    addLogSignal = pyqtSignal(str)
-    setLogTextSignal = pyqtSignal(str)
-    changeWorkingSignal = pyqtSignal(int)
-    changeFinSignal = pyqtSignal(int)
-    changePassSignal = pyqtSignal(int)
-    finishApp = pyqtSignal()  # 프로그램 종료 요청 신호
+    setLogTextSignal = Signal(str)
+    setErrorLogSignal = Signal(str)
+    goNextStepSignal = Signal()
+    finishApp = Signal()
 
     def run(self):
-        self.changeWorking(0)
+        self.goNextStep() #먼저 2단계로 넘어가줌
+        # 1. DB 존재여부 확인 및 import
         db_path = pathlib.Path(os.getenv('APPDATA')).joinpath('SkyWare','LiveKiosk','db.db')
-        if not db_path.is_file():
-            self.addLog('오류가 발생했습니다. 관리자에게 문의해 주십시오.')
-            self.addLog('오류 : DB 설정파일이 존재하지 않습니다. LiveKiosk를 다시 설치해 주십시오. 다시 설치해도 해결되지 않으면, 개발자인 소라메 하토에게 이메일 SorameHato@protonmail.ch 로 문의해 주십시오.')
+        if not db_path.is_file(): #만약 DB 없으면 오류메세지 띄우고 끝
+            self.setErrorLog('오류가 발생했습니다. 관리자에게 문의해 주십시오.\n오류 : DB 설정파일이 존재하지 않습니다. LiveKiosk를 다시 설치해 주십시오. 다시 설치해도 해결되지 않으면, 개발자인 소라메 하토에게 이메일 SorameHato@protonmail.ch 로 문의해 주십시오.')
             return
-        ## DB 연결 완료 표시
-        self.changeWorking(1)
+        else: #만약 존재하면 youtube, db 모듈 import
+            from api import youtube, db
+            from api.db import getTimeCode, getWeekdayCode, getTimeStamp
+            essential_mode = db.get_setting('essential_mode_enabled') == '1'
+        self.goNextStep()
 
-        ## DB에서 사전 설정된 title, desc 가져오기
-        date1 = now.strftime('%Y년 %m월 %d일')
-        date2 = now.strftime('%Y-%m-%d')
-        date3 = now.strftime('%Y/%m/%d')
-        center_location = db.get_setting('center_name')
-        device_location = db.get_setting('device_name')
-        self.setLogTextSignal.emit(f"방송장비를 초기화하는 중…\n{center_location}\n{device_location}\nDeveloped by 2011-2025 SkyWare <Hato Sorame> License: GPL v3\n")
-
-        b_title = db.get_setting('stream_title').replace('{date1}',date1).replace('{date2}',date2).replace('{date3}',date3).replace('{center}',db.get_setting('stream_center')).replace('{device}',db.get_setting('stream_device'))
-        b_desc = db.get_setting('stream_desc').replace('{date1}',date1).replace('{date2}',date2).replace('{date3}',date3).replace('{center}',db.get_setting('stream_center')).replace('{device}',db.get_setting('stream_device'))
-
-        if not(db.get_setting('streamkey_renew_enabled') == '0' and db.get_setting('stream_autocreate_enabled') == '0'):
+        # 2. 토큰 상태 확인
+        # 스트림키 초기화, 스트림 자동생성 중 하나라도 활성화되어있고 에센셜모드가 아닌 경우에만 실행
+        if ((db.get_setting('streamkey_renew_enabled') != '0' or db.get_setting('stream_autocreate_enabled') != '0') and not essential_mode):
             ## Youtube API 인증정보 가지고 오기
             candidate = youtube.auth()
 
+            # 만약 만료시나 미연동시엔 오류메세지 띄우고 끝
             if candidate is None or db.get_setting('channel_name') == '※ 다시 연동 필요 ※':
-                self.addLog('오류가 발생했습니다. 관리자에게 문의해 주십시오.')
-                self.addLog('오류 : YouTube 토큰이 만료되었습니다. 설정 > YouTube API 연동 설정 > Google 계정으로 로그인 버튼을 클릭해 다시 연동해 주십시오.')
+                self.setErrorLog('오류가 발생했습니다. 관리자에게 문의해 주십시오.\n오류 : YouTube 토큰이 만료되었습니다. 설정 > YouTube API 연동 설정 > Google 계정으로 로그인 버튼을 클릭해 다시 연동해 주십시오.')
                 return
-                    
-            self.changeWorking(2)
-        else:
-            self.changePass(2)
+        self.goNextStep()
 
+        # 3. 영업시간 확인 및 자동종료 설정
+        # 해당 기능 켜져있을 때만 실행
         if db.get_setting('shutdown_enabled') == '1':
+            # 일단 영업시간을 가져옴
             start_time, end_time = db.fetch_operation_time(getWeekdayCode(now))
-            ## 영업시간 확인 완료 표시
 
             try:
-                now_tc = getTimeCode(now.hour, now.minute)
-                if not (now_tc >= (start_time - 10) and now_tc < end_time):
-                    self.addLog('영업시간이 아닙니다. 60초 후 시스템을 종료합니다.')
-                    subprocess.check_call(['shutdown','-s','-t','60','-c','영업시간이 아닙니다.'])
-                else:
-                    self.addLog(f'오늘의 영업시간 : {getTimeStamp(start_time)} ~ {getTimeStamp(end_time)}')
-                    subprocess.check_call(['shutdown','-s','-t',str((end_time-getTimeCode(now.hour,now.minute))*60),'-c',f'"오늘의 영업시간은 {getTimeStamp(end_time)} 까지입니다."'])
+                now_tc = getTimeCode(now.hour, now.minute) #현재시간을 타임코드로 가져와서 비교
+                if (not (now_tc >= (start_time - 10) and now_tc < end_time)): #영업시간 아니면
+                    if (db.get_setting('shutdown_outside_operation_times_enabled') == '1'): #자동종료 켜져있음?
+                        self.setErrorLog('영업시간이 아닙니다. 60초 후 시스템을 종료합니다.') #그럼 끔
+                        subprocess.check_call(['shutdown','-s','-t','60','-c','영업시간이 아닙니다.'])
+                        return
+                    else: #자동종료 꺼져있음?
+                        #그럼 영업시간 시작 전은 오늘, 영업시간 종료 후는 내일 영업종료시간까지 운영
+                        subprocess.check_call(['shutdown','-s','-t',str((end_time-now_tc)*60) if end_time > now_tc else str((end_time-now_tc+1440)*60),'-c',f'"오늘의 영업시간은 {getTimeStamp(end_time)} 까지입니다."'])
+                else: #영업시간이면 그냥 종료 설정
+                    subprocess.check_call(['shutdown','-s','-t',str((end_time-now_tc)*60),'-c',f'"오늘의 영업시간은 {getTimeStamp(end_time)} 까지입니다."'])
             except Exception:
-                self.addLog('shutdown 설정이 이미 설정되어있는 것 같습니다.')
-            ## 자동 종료 설정 완료 표시
-            self.changeWorking(3)
-        else:
-            self.changePass(3)
+                pass
+        self.goNextStep()
 
-        if db.get_setting('stream_autocreate_enabled') == '1':
+        # 4. 스트리밍 생성
+        # 스트림 자동생성 커져있음 + 에센셜모드 아닐때만 실행
+        if db.get_setting('stream_autocreate_enabled') == '1' and not essential_mode:
+            # 일단 변수 설정
+            date1 = now.strftime('%Y년 %m월 %d일')
+            date2 = now.strftime('%Y-%m-%d')
+            date3 = now.strftime('%Y/%m/%d')
+
+            # 가지고 온 변수로 타이틀, 설명 생성하고 그걸로 유튜브 방송 생성
+            b_title = db.get_setting('stream_title').replace('{date1}',date1).replace('{date2}',date2).replace('{date3}',date3).replace('{center}',db.get_setting('stream_center')).replace('{device}',db.get_setting('stream_device'))
+            b_desc = db.get_setting('stream_desc').replace('{date1}',date1).replace('{date2}',date2).replace('{date3}',date3).replace('{center}',db.get_setting('stream_center')).replace('{device}',db.get_setting('stream_device'))
             youtube.create_broadcast(b_title, b_desc, candidate)
-            ## 방송 생성 완료 표시
-            self.changeWorking(4)
-        else:
-            self.changePass(4)
+        self.goNextStep()
 
+        # 5. 오래된 녹화 파일 삭제
+        # 해당 기능 켜져있을 때만 실행
         ## 녹화본 위치 가져와서, 14일 이상 경과한 파일 삭제
         if db.get_setting('record_delete_enabled') == '1':
-            result = delete_old_files(pathlib.Path(db.get_setting('record_loc')),int(db.get_setting('record_delete_dur')))
-            self.addLog(result)
-            self.changeWorking(5)
-        else:
-            self.changePass(5)
+            self.delete_old_files(pathlib.Path(db.get_setting('record_loc')),int(db.get_setting('record_delete_dur')))
+        self.goNextStep()
 
-        ## TODO : OBS 프로파일, 장면 백업
-        pf_dir = pathlib.Path(db.getOBSProfilesPath(db.get_setting('obs_renew_pf_dir')))
-        basic_ini = pf_dir.joinpath('basic.ini')
-        service = pf_dir.joinpath('service.json')
-        obs_path = pathlib.Path(db.get_setting('obs_path'))
+        # 6, 7번에서 쓰이는 변수 불러오기
+        if (db.get_setting('obs_renew_enabled') == '1') or (db.get_setting('streamkey_renew_enabled') == '1' and not essential_mode):
+            pf_dir = pathlib.Path(db.getOBSProfilesPath(db.get_setting('obs_renew_pf_dir')))
+            basic_ini = pf_dir.joinpath('basic.ini')
+            service = pf_dir.joinpath('service.json')
+            obs_path = pathlib.Path(db.get_setting('obs_path'))
+
+        # 6. OBS 스튜디오 설정 백업
+        # 해당 기능 켜져있을 때만 실행
         if db.get_setting('obs_renew_enabled') == '1':
             with basic_ini.open('rb') as f:
                 pf_basic = hashlib.sha512(f.read()).hexdigest()
@@ -272,12 +375,11 @@ class init(QThread):
                 db.update_temp('hash_pf_service',pf_service)
                 db.update_temp('hash_pf_streamencoder',pf_streamEncoder)
                 db.update_temp('hash_scene',scene_dir)
+        self.goNextStep()
 
-            self.changeWorking(6)
-        else:
-            self.changePass(6)
-
-        if db.get_setting('streamkey_renew_enabled') == '1':
+        # 7. YouTube 채널 스트림키 불러와서 OBS 스튜디오 프로파일에 집어넣기
+        # 해당 기능 켜져있고 에센셜모드 아닐때만 실행
+        if db.get_setting('streamkey_renew_enabled') == '1' and not essential_mode:
             ## TODO : youtube api에서 계정 스트림 키 가져와서, OBS 프로파일에 붙여넣기 하는 거
             stream_key = db.get_setting('channel_stream_key')
 
@@ -319,52 +421,58 @@ class init(QThread):
                     pf_service2 = hashlib.sha512(f.read()).hexdigest()
                 db.update_temp('hash_pf_basic',pf_basic2)
                 db.update_temp('hash_pf_service',pf_service2)
+        self.goNextStep()
 
-            self.changeFin(6)
-        else:
-            self.changePassFin(6)
-
-        ## OBS 실행
+        # 8. OBS Studio 실행
+        # goNextStep 한 후 10초 있다가 닫기
         if db.get_setting('stream_autocreate_enabled') == '1':
             ctypes.windll.shell32.ShellExecuteA(0, b'open', b'obs64.exe',b'--startstreaming',b'C:\\Program Files\\obs-studio\\bin\\64bit',1)
         else:
             ctypes.windll.shell32.ShellExecuteA(0, b'open', b'obs64.exe',b'',b'C:\\Program Files\\obs-studio\\bin\\64bit',1)
-
-        ## TODO : 이거 팝업창이나 하단 라벨로 띄우기
-        self.addLog('자동 초기화가 완료되었습니다. 이 창은 1분 후 자동으로 닫힙니다.')
-        time.sleep(60)
+        self.sleep(10)
         self.finishApp.emit()
-    
-    def addLog(self,log:str):
-        self.addLogSignal.emit(log)
-    
-    def changeFin(self,index:int):
-        self.changeFinSignal.emit(index)
-    
-    def changeWorking(self,index:int):
-        if index >= 1:
-            self.changeFinSignal.emit(index-1)
-        if index < work_count:
-            self.changeWorkingSignal.emit(index)
 
-    def changePass(self,index:int):
-        if index >= 1:
-            self.changePassSignal.emit(index-1)
-        if index < work_count:
-            self.changeWorkingSignal.emit(index)
+    def setLog(self,log:str):
+        self.setLogTextSignal.emit(log)
 
-    def changePassFin(self,index:int):
-        self.changePassSignal.emit(index)
+    def setErrorLog(self, log:str):
+        self.setErrorLogSignal.emit(log)
 
-def main():
-    sys.argv += ['-platform', 'windows:darkmode=1']
-    app = QApplication(sys.argv)
-    font_id = QFontDatabase.addApplicationFont('Pretendard-Regular.otf')
-    print(font_id)
-    window = MainWindow()
-    window.show()
-    QTimer.singleShot(1000, window.start_init)
-    sys.exit(app.exec())
+    def goNextStep(self):
+        self.goNextStepSignal.emit()
+
+    def delete_old_files(self, file_loc: pathlib.Path, days_old: int = 30):
+        threshold = now - datetime.timedelta(days=days_old)
+        old_files:list[pathlib.Path] = []
+
+        # 디렉터리 존재 및 유효성 체크
+        if not file_loc.exists() or not file_loc.is_dir():
+            self.setErrorLog(f"디렉터리가 존재하지 않거나 디렉터리가 아닙니다: {file_loc}")
+            return
+
+        for file in file_loc.iterdir():
+            if file.is_file():
+                try:
+                    created_time = datetime.datetime.fromtimestamp(file.stat().st_birthtime)
+                except AttributeError:
+                    # 일부 시스템은 생성 시간이 없을 수 있으므로, 수정 시간(st_mtime) 사용
+                    created_time = datetime.datetime.fromtimestamp(file.stat().st_mtime)
+                created_time = created_time.astimezone(tz=datetime.timezone(datetime.timedelta(hours=9)))
+                if created_time < threshold:
+                    old_files.append(file)
+
+        for old_file in old_files:
+            old_file.unlink(True)  # 파일 삭제
+
+        return f"녹화된 지 {days_old}일이 지난 녹화 파일 {len(old_files)}개를 삭제했습니다."
+
 
 if __name__ == "__main__":
-    main()
+    app = QApplication(sys.argv)
+
+    window = MainWindow()
+    window.show()
+
+    QTimer.singleShot(1000, window.start_init)
+
+    sys.exit(app.exec())
