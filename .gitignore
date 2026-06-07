@@ -161,6 +161,7 @@ cython_debug/
 
 # 설정 파일, 토큰 등 올라가는 것 방지
 *.json
+!manifest.json
 *.db
 /src/obs-profile
 /git

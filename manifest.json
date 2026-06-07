@@ -1,0 +1,41 @@
+{
+  "version": "6.0.0-candy.0",
+  "files": {
+    "init.pyw": {
+      "sha256": "1da98b3950c75f53a223d96c895ab06ab510612383870b717da84225d681e616",
+      "size": 22069
+    },
+    "obs-plugin.py": {
+      "sha256": "fded27dbeb0bf0f1ace655f8e484a870235e6254c6171b31e3bcf0601ae5d6f8",
+      "size": 9567
+    },
+    "run_once.py": {
+      "sha256": "6e3d4ba1d8e46a6aca7b328a10a49e596e5e5aed7266b96b530f651f1fdd1e5c",
+      "size": 2691
+    },
+    "setting.pyw": {
+      "sha256": "763ed8439a043862be6bafe0ad88dea3703d7b99a526e6ed136a4622f04a6546",
+      "size": 59634
+    },
+    "update.pyw": {
+      "sha256": "8ce899f16b7e41250cd72f7fc7228f93c267543ed579aca92f29e18581526bc5",
+      "size": 4251
+    },
+    "__init__.py": {
+      "sha256": "500ab0b01ad8983c7122147e62db558a1710ad0b773659a330a7a5b3c6e7792f",
+      "size": 127
+    },
+    "api/db.py": {
+      "sha256": "9c03078c7090be22126d0123b8d9fec3a3fcaed94ad18b4967d72b99649b9606",
+      "size": 15702
+    },
+    "api/youtube.py": {
+      "sha256": "5ef2867e22183e0fbdfc53a43d261206af91fcfc1b13cdc0ca7114348d8911bb",
+      "size": 5714
+    },
+    "image/cover.png": {
+      "sha256": "f74185d97b3291dadf41ee5814a8a28b8c55a0d2b591f4f502f84b6c5c2bec8e",
+      "size": 11512
+    }
+  }
+}
